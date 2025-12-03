@@ -44,6 +44,10 @@ public class PlayerFire : MonoBehaviour
             if (Physics.Raycast(ray, out hit))
             {
                 print("충돌 오브젝트: " + hit.collider.name);
+                if(hit.collider.gameObject.layer == LayerMask.NameToLayer("Enemy"))
+                {
+                    hit.collider.gameObject.GetComponent<EnemyFSM>().HitDamage(10);
+                }
 
                 // 충돌지점에 총알 파편만 생성
                 GameObject bulletImpact = Instantiate(bulletImpactFactory);
