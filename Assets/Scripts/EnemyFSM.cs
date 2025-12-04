@@ -60,11 +60,15 @@ public class EnemyFSM : MonoBehaviour
     // 따라서 시작할 때 네비메시에이전트는 꺼줘야 한다.
 
 
+    Animator anim;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         cc = GetComponent<CharacterController>();
         playerPos = GameObject.Find("Player").transform;
+
+        anim = GetComponent<Animator>();
 
         // 몬스터 상태 초기화
         state = EnemyState.Idle;
@@ -73,6 +77,7 @@ public class EnemyFSM : MonoBehaviour
         firstPos = transform.position;
 
         agent = GetComponent<NavMeshAgent>();
+        Debug.Log(agent);
         agent.enabled = false;
     }
 
@@ -106,154 +111,178 @@ public class EnemyFSM : MonoBehaviour
     // 대기 상태
     void Idle()
     {
-        // 1. 플레이어와 일정범위가 되면 이동상태로 변경 (탐지범위)
-        // - 플레이어 찾기
-        // - 일정거리 비교 (Distance, magnitude, sqrMagnitude 아무거나)
-        // - 상태변경 state = EnemyState.Move
-        // - 상태전환 출력 print("Idel -> Move")
-        // - 애니메이션 anim.SetTrigger("Move")
-
-        if (Vector3.Distance(playerPos.position, transform.position) < findRange)
+        if (!isDie)
         {
-            preState = state;
-            state = EnemyState.Move;
-            print("Idle -> Move");
+            agent.enabled = false;
+            // 1. 플레이어와 일정범위가 되면 이동상태로 변경 (탐지범위)
+            // - 플레이어 찾기
+            // - 일정거리 비교 (Distance, magnitude, sqrMagnitude 아무거나)
+            // - 상태변경 state = EnemyState.Move
+            // - 상태전환 출력 print("Idel -> Move")
+            // - 애니메이션 anim.SetTrigger("Move")
+
+            anim.SetBool("IsMove", false);
+
+            if (Vector3.Distance(playerPos.position, transform.position) < findRange)
+            {
+                preState = state;
+                state = EnemyState.Move;
+                print("Idle -> Move");
+            }
         }
     }
     
     // 이동 상태
     void Move()
     {
-        // 시작할 때 켜주고 무브 상태가 아닐 때 꺼줘야 한다.
-        if(!agent.enabled) agent.enabled = true;        
-
-        //Vector3 dir = playerPos.position - transform.position;
-
-        // 몬스터가 자신이 서 있는 위치에서 회전 값 없이 백스텝으로 쫓아온다.
-        // 몬스터가 타겟을 바로 보도록 하자
-        //transform.forward = dir;
-        //transform.LookAt(dir);
-
-        // 좀 더 자연스럽게
-        //transform.forward = Vector3.Lerp(transform.forward, dir, 5 * Time.deltaTime);
-        // 여기에 문제가 한가지 있는데
-        // 타겟과 몬스터가 일직선 상일 경우 왼쪽으로 회전해야 할지 오른쪽으로 회전해야 할지 정하질 못해서
-        // 그냥 백덤블링으로 회전을 하게 한다.
-        // -> 쿼터니온으로 회전처리 하면 좀 더 자연스럽다
-
-        // 최종적으로 자연스런 회전처리를 하려면 결국 쿼터니온을 사용해야 한다
-        //transform.rotation = Quaternion.Lerp(transform.rotation, 
-        //    Quaternion.LookRotation(dir), 4 * Time.deltaTime);
-
-        //cc.SimpleMove(dir * speed);
-
-        // 플레이어를 향해서 이동해라
-        // 네비메시에이전트가 회전처리부터 이동까지 전부 다 처리해준다
-        agent.SetDestination(playerPos.position);
-
-        // 플레이어를 향해서 이동해러
-        // 네비메시에이전트가 회전처리부터 이동까지 전부 다 처리해준다.
-        // 네비메시에이전트 선언 해준 후 밑에꺼 (destination)
-        //NavMeshAgent.SetDestination(playerPos.position);
-
-
-        // 1. 플레이어를 향해 이동 후 공격범위 안에 들어오면 공격 상태로 변경
-        if (Vector3.Distance(playerPos.position, transform.position) < attackRange)
+        if (!isDie)
         {
-            preState = state;
-            state = EnemyState.Attack;
-            print("Move -> Attack");
-        }
-        // 2. 플레이어를 추격하더라도 처음 위치에서 일정 범위를 넘어가면 리턴 상태로 변경
+            anim.SetBool("IsMove", true);
 
-        if (Vector3.Distance(transform.position, firstPos) > moveRange)
-        {
-            preState = state;
-            state = EnemyState.Return;
-            print("Move -> Return");
-        }
+            // 시작할 때 켜주고 무브 상태가 아닐 때 꺼줘야 한다.
+            if (!agent.enabled) agent.enabled = true;
 
-        if (Vector3.Distance(transform.position,playerPos.position) > findRange)
-        {
-            preState = state;
-            state = EnemyState.Return;
-            print("Move -> Return");
+            Vector3 dir = playerPos.position - transform.position;
+
+            // 몬스터가 자신이 서 있는 위치에서 회전 값 없이 백스텝으로 쫓아온다.
+            // 몬스터가 타겟을 바로 보도록 하자
+            //transform.forward = dir;
+            //transform.LookAt(dir);
+
+            // 좀 더 자연스럽게
+            //transform.forward = Vector3.Lerp(transform.forward, dir, 5 * Time.deltaTime);
+            // 여기에 문제가 한가지 있는데
+            // 타겟과 몬스터가 일직선 상일 경우 왼쪽으로 회전해야 할지 오른쪽으로 회전해야 할지 정하질 못해서
+            // 그냥 백덤블링으로 회전을 하게 한다.
+            // -> 쿼터니온으로 회전처리 하면 좀 더 자연스럽다
+
+            // 최종적으로 자연스런 회전처리를 하려면 결국 쿼터니온을 사용해야 한다
+            transform.rotation = Quaternion.Lerp(transform.rotation,
+                Quaternion.LookRotation(dir), 4 * Time.deltaTime);
+
+            cc.SimpleMove(dir * speed);
+
+            // 플레이어를 향해서 이동해라
+            // 네비메시에이전트가 회전처리부터 이동까지 전부 다 처리해준다
+            //agent.SetDestination(playerPos.position);
+
+            // 플레이어를 향해서 이동해러
+            // 네비메시에이전트가 회전처리부터 이동까지 전부 다 처리해준다.
+            // 네비메시에이전트 선언 해준 후 밑에꺼 (destination)
+            //NavMeshAgent.SetDestination(playerPos.position);
+
+
+            // 1. 플레이어를 향해 이동 후 공격범위 안에 들어오면 공격 상태로 변경
+            if (Vector3.Distance(playerPos.position, transform.position) < attackRange)
+            {
+                preState = state;
+                state = EnemyState.Attack;
+                print("Move -> Attack");
+            }
+            // 2. 플레이어를 추격하더라도 처음 위치에서 일정 범위를 넘어가면 리턴 상태로 변경
+
+            if (Vector3.Distance(transform.position, firstPos) > moveRange)
+            {
+                preState = state;
+                state = EnemyState.Return;
+                print("Move -> Return");
+            }
+
+            if (Vector3.Distance(transform.position, playerPos.position) > findRange)
+            {
+                preState = state;
+                state = EnemyState.Return;
+                print("Move -> Return");
+            }
+            // - 플레이어처럼 캐릭터 컨트롤러 이용하기 (cc.Move 대신 cc.SimpleMove 이용하자)
+            // - 공격범위 2미터
+            // - 상태변경
+            // - 상태전환 출력
+            // - 애니메이션
         }
-        // - 플레이어처럼 캐릭터 컨트롤러 이용하기 (cc.Move 대신 cc.SimpleMove 이용하자)
-        // - 공격범위 2미터
-        // - 상태변경
-        // - 상태전환 출력
-        // - 애니메이션
     }
 
     // 공격 상태
     void Attack()
     {
-        // 에이전트 오프
-        agent.enabled = false;
-
-        // 공격할 때 거리로만 처리되다보니 엉뚱한 곳을 공격할 수 있다
-        transform.LookAt(playerPos.position);
-
-        // 1. 플레이어가 공격범위 안에 있다면 일정 시간 간격으로 플레이어 공격
-        timer += Time.deltaTime;
-        if (timer >= attackCooldown)
+        if (!isDie)
         {
-            print("몬스터 공격");
-            timer = 0;
+            anim.SetBool("IsMove", false);
+
+            // 에이전트 오프
+            agent.enabled = false;
+
+            // 공격할 때 거리로만 처리되다보니 엉뚱한 곳을 공격할 수 있다
+            transform.LookAt(playerPos.position);
+
+            // 1. 플레이어가 공격범위 안에 있다면 일정 시간 간격으로 플레이어 공격
+            timer += Time.deltaTime;
+            if (timer >= attackCooldown)
+            {
+                anim.SetTrigger("IsAttack");
+                print("몬스터 공격");
+                timer = 0;
+            }
+            // 2. 플레이어가 공격범위를 벗어났다면 이동상태(재추격)로 변경
+            if (Vector3.Distance(playerPos.position, transform.position) > attackRange)
+            {
+                preState = state;
+                state = EnemyState.Move;
+                print("Attack -> Move");
+                timer = attackCooldown;
+            }
+            // - 공격 범위 2미터
+            // - 상태변경
+            // - 상태전환 출력
+            // - 애니메이션
         }
-        // 2. 플레이어가 공격범위를 벗어났다면 이동상태(재추격)로 변경
-        if (Vector3.Distance(playerPos.position, transform.position) > attackRange)
-        {
-            preState = state;
-            state = EnemyState.Move;
-            print("Attack -> Move");
-            timer = attackCooldown;
-        }
-        // - 공격 범위 2미터
-        // - 상태변경
-        // - 상태전환 출력
-        // - 애니메이션
     }
 
     // 복귀 상태
     void Return()
     {
-        // 1. 몬스터가 플레이어를 추격하더라도 처음 위치에서 일정 범위를 벗어나면 다시 돌아옴
-        //Vector3 dir = firstPos - transform.position;
-
-        //transform.rotation = Quaternion.Lerp(transform.rotation,
-        //    Quaternion.LookRotation(dir), 4 * Time.deltaTime);
-
-        //cc.SimpleMove(dir * speed);
-
-        // 이동 처리
-        agent.SetDestination(firstPos);
-
-        if(Vector3.Distance(transform.position, firstPos) < 0.1f)
+        if (!isDie)
         {
-            transform.position = firstPos;
-            preState = state;
-            state = EnemyState.Idle;
-            print("Return -> Idle");
-            agent.enabled = false;
+            if (!agent.enabled) agent.enabled = true;
+
+            anim.SetBool("IsMove", true);
+            // 1. 몬스터가 플레이어를 추격하더라도 처음 위치에서 일정 범위를 벗어나면 다시 돌아옴
+            Vector3 dir = firstPos - transform.position;
+
+            transform.rotation = Quaternion.Lerp(transform.rotation,
+                Quaternion.LookRotation(dir), 4 * Time.deltaTime);
+
+            cc.SimpleMove(dir * speed);
+
+            // 이동 처리
+            //agent.SetDestination(firstPos);
+
+            if (Vector3.Distance(transform.position, firstPos) < 1f)
+            {
+                transform.position = firstPos;
+                preState = state;
+                state = EnemyState.Idle;
+                print("Return -> Idle");
+                agent.enabled = false;
+            }
+            if (Vector3.Distance(transform.position, playerPos.position) < findRange
+                && Vector3.Distance(playerPos.position, firstPos) < moveRange)
+            {
+                preState = state;
+                state = EnemyState.Move;
+                print("Return -> Move");
+            }
+            // - 처음 위치에서 일정범위 30미터
+            // - 상태변경
+            // - 상태전환 출력
+            // - 애니메이션
         }
-        if(Vector3.Distance(transform.position, playerPos.position) < findRange
-            && Vector3.Distance(playerPos.position, firstPos) < moveRange)
-        {
-            preState = state;
-            state = EnemyState.Move;
-            print("Return -> Move");
-        }
-        // - 처음 위치에서 일정범위 30미터
-        // - 상태변경
-        // - 상태전환 출력
-        // - 애니메이션
     }
 
     // 플레이어 쪽에서 충돌감지를 할 수 있으니 이 함수는 퍼블릭으로 만들자
     public void HitDamage(int value)
     {
+        
         // 예외처리
         // 피격 상태거나, 죽음 상태일 때는 데미지 중첩으로 주지 않는다.
         if(state == EnemyState.Damaged || state == EnemyState.Die)
@@ -283,18 +312,23 @@ public class EnemyFSM : MonoBehaviour
     // 피격 상태 (Any State)
     void Damaged()
     {
-        // 1. 몬스터 체력이 1이상
-        // 2. 다시 이전상태로 변경
-        // - 상태변경
-        // - 상태전환 출력
-        StartCoroutine(DamagedCoroutine());
-        // 피격상태를 처리하기 위해서는 간단한 코루틴 사용
+        if (!isDie)
+        {
+            agent.enabled = false;
+            // 1. 몬스터 체력이 1이상
+            // 2. 다시 이전상태로 변경
+            // - 상태변경
+            // - 상태전환 출력
+            StartCoroutine(DamagedCoroutine());
+            // 피격상태를 처리하기 위해서는 간단한 코루틴 사용
+        }
     }
 
     IEnumerator DamagedCoroutine()
     {
         if (!isDamaged)
         {
+            anim.SetTrigger("IsDamaged");
             isDamaged = true;
             print("피격 애니메이션");
             print("몬스터 체력: " + hp);
@@ -329,7 +363,8 @@ public class EnemyFSM : MonoBehaviour
     {
         isDie = true;
         print("죽는 애니메이션");
-        yield return new WaitForSeconds(1);
+        anim.SetTrigger("IsDie");
+        yield return new WaitForSeconds(1f);
         print(preState + " -> Die");
         Destroy(gameObject);
     }

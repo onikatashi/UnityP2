@@ -12,7 +12,7 @@ public class PlayerMove : MonoBehaviour
     // 중력 적용
     public float gravity = -10f;        // 중력
     float velocityY;                    // 낙하속도
-    float jumpPower = 5f;               // 점프 파워
+    public float jumpPower = 5f;               // 점프 파워
     int jumpCount = 0;                  // 점프 카운트
     public int jumpMaxCount = 2;        // 점프 최대치
 
